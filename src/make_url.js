@@ -1,5 +1,5 @@
 // var base_url = 'http://pmr.knifeinthesocket.com:8081';
-var base_url = 'http://api.comics.knifeinthesocket.com:8081';
+var base_url = 'http://api.comics.knifeinthesocket.com';
 // var base_url = 'http://localhost:8081';
 // var base_url = 'http://192.168.9.71:8081'; // Cloudware
 // var base_url = 'http://192.168.1.16:8081'; // Home
