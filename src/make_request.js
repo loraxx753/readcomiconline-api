@@ -12,7 +12,7 @@ var redis_client  = redis.createClient({
   db: 15
 });
 
-var cache_enabled = false;
+var cache_enabled = true;
 
 var ensure_cache_dir_exists = (dir) => {
   var full_path, stat;
