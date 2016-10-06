@@ -40,13 +40,29 @@ var get_cached_absolute_path = (type, filename) => {
   return path.resolve('cache', type, filename);
 };
 
+var get_cookie_filename = () => {
+  var full_path, stat;
+
+  // Ensure that the cookies file exists
+  try {
+    full_path = path.resolve('cookies.json');
+    stat = fs.statSync(full_path);
+  }
+  catch(err) {
+    var fd = fs.openSync(full_path, 'w');
+    fs.closeSync(fs.openSync(full_path, 'w'));
+  }
+
+  return full_path;
+};
+
 redis_client.on("error", function (err) {
   console.log(`[REDIS] Error ${err}`);
 });
 
 request = request.defaults({
   // proxy: 'http://localhost:8888',
-  jar: request.jar(new file_cookie_store('cookies.json'))
+  jar: request.jar(new file_cookie_store(get_cookie_filename()))
 });
 
 var make_request = (request_options) => {
