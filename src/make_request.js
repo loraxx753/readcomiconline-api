@@ -1,4 +1,5 @@
-var pass_challenge = require('./pass_challenge_phantom');
+// var pass_challenge = require('./pass_challenge_phantom');
+var pass_challenge = require('./pass_challenge');
 var request = require('request');
 var file_cookie_store = require("tough-cookie-filestore");
 var fs            = require('fs');
@@ -62,16 +63,19 @@ redis_client.on("error", function (err) {
 
 request = request.defaults({
   // proxy: 'http://localhost:8888',
-  jar: request.jar(new file_cookie_store(get_cookie_filename()))
+  jar: request.jar(new file_cookie_store(get_cookie_filename())),
+  gzip: true
 });
 
 var make_request = (request_options) => {
   var from_cache = false;
   var request_headers = {
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1',
-    'Connection': 'Keep-Alive',
-    'Accept-Language': 'en-US,*'
+    "Host": 'readcomiconline.to',
+    "Upgrade-Insecure-Requests": '1',
+    "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36',
+    "Accept": 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    "Accept-Encoding": 'gzip, deflate, sdch',
+    "Accept-Language": 'en-GB,en;q=0.8'  
   };
 
   if (typeof request_options == 'string') {
@@ -115,12 +119,22 @@ var make_request = (request_options) => {
         if (body.match(/challenge-form/)) {
           console.log('Challenge necessary, trying to pass it');
 
-          pass_challenge(request_options.url)
+          pass_challenge(request_options.url, body)
             .then((challenge_options) => {
               console.log('Challenge options:');
               console.log('url:', challenge_options.url);
               console.log('headers:', challenge_options.headers);
+              
+              console.log('------- Challenge options: -------');
+              console.log(challenge_options.headers["Referer"], request_options.headers["Referer"], request_options.url);
 
+              if (!!request_options.headers.Referer) {
+                challenge_options.headers.Referer = request_options.headers.Referer;
+              }
+
+              console.log(challenge_options.headers["Referer"], request_options.headers["Referer"], request_options.url);
+              console.log('------- /Challenge options: -------');
+              
               challenge_options.from_cache = false;
 
               make_request(challenge_options)
