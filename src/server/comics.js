@@ -1,12 +1,12 @@
-var express       = require('express');
-var cheerio       = require('cheerio');
-var app           = express();
-var make_request  = require('../make_request');
-var make_url      = require('../make_url');
-var router        = express.Router();
-var stringify     = require('node-stringify');
-var pathToRegexp  = require('path-to-regexp');
-var cache         = require('../cache');
+var express         = require('express');
+var cheerio         = require('cheerio');
+var app             = express();
+var server_request  = require('../make_request');
+var make_url        = require('../make_url');
+var router          = express.Router();
+var stringify       = require('node-stringify');
+var pathToRegexp    = require('path-to-regexp');
+var cache           = require('../cache');
 
 const ROUTES = {
   root: '/',
@@ -122,151 +122,156 @@ var get_comic_listing = (response, request) => {
     }
   });
 
-  return Promise.resolve({
+  var p = Promise.resolve({
     links: links,
     data: all_comics
   });
+
+  p.__name = 'Comics listing';
+  return p;
 };
 
 var get_comic_details = (response, request) => {
-  var $ = cheerio.load(response.body);
-  var $data = $('#leftside > .bigBarContainer:first-child > .barContent');
-  var cover_url = $('#rightside > .rightBox:first-child > .barContent img').attr('src');
+  var p = new Promise((resolve, reject) => {
+    var $ = cheerio.load(response.body);
+    var $data = $('#leftside > .bigBarContainer:first-child > .barContent');
+    var cover_url = $('#rightside > .rightBox:first-child > .barContent img').attr('src');
 
-  var json_data = {
-    data: {
-      type: 'comics',
-      id: request.params.name,
-      attributes: {
-        title: $data.find('.bigChar').text().trim()
-      },
-      relationships: {},
-      links: {
-      }
-    },
-    included: [],
-    links: []
-  };
-
-  $data.find('p').each((index, item) => {
-    var $item = $(item);
-    var info_name = $item.find('.info:first-child').text().replace(/:/, '');
-
-    switch(info_name) {
-      case 'Genres':
-        $item.find('a').each((_, genre) => {
-          var genre_data = get_linked_data($(genre), 'genres');
-
-          json_data.included.push(genre_data);
-
-          if (!json_data.data.relationships.genres) {
-            json_data.data.relationships.genres = [];
-          }
-
-          json_data.data.relationships.genres.push({
-            id: genre_data.id,
-            type: genre_data.type
-          });
-        });
-
-        break;
-
-      case 'Publisher':
-        var publisher_data = get_linked_data($item.find('a'), 'publishers');
-
-        json_data.included.push(publisher_data);
-
-        json_data.data.relationships.publisher = {
-          id: publisher_data.id,
-          type: publisher_data.type
-        };
-
-        break;
-
-      case 'Writer':
-        var writer_data = get_person_data($item.find('a'), 'writers');
-
-        json_data.included.push(writer_data);
-        json_data.data.relationships.writer = {
-          id: writer_data.id,
-          type: writer_data.type
-        };
-
-        break;
-
-      case 'Artist':
-        var artist_data = get_person_data($item.find('a'), 'artists');
-
-        json_data.included.push(artist_data);
-        json_data.data.relationships.artist = {
-          id: artist_data.id,
-          type: artist_data.type
-        };
-
-        break;
-
-      case 'Publication date':
-        json_data.data.attributes.publication_date = $item.text().match(/publication date:\s+(.+)/i)[1].trim();
-        break;
-
-      case 'Status':
-        json_data.data.attributes.status = $item.text().match(/status:\s+(.+?)\s+/i)[1].trim();
-        break;
-
-      case 'Summary':
-        json_data.data.attributes.summary = $item.next().text().trim();
-        break;
-    }
-  });
-
-  $('.listing').find('tr').each((index, item) => {
-    var $item = $(item);
-
-    if ($item.find('a').length > 0) {
-      var title = $item.find('a').text().trim();
-      var issue_id = get_url_last_part($item.find('a').attr('href'));
-      var url = make_url(ROUTES.comic.issue, { name: json_data.data.id, issue: issue_id });
-      var release_day = $item.find('td:last-child').text().trim();
-
-      var issue = {
-        id: `${json_data.data.id}-${issue_id}`,
-        type: 'issues',
+    var json_data = {
+      data: {
+        type: 'comics',
+        id: request.params.name,
         attributes: {
-          title: title,
-          release_day: release_day
+          title: $data.find('.bigChar').text().trim()
         },
+        relationships: {},
         links: {
-          self: url
         }
-      };
+      },
+      included: [],
+      links: []
+    };
 
-      var match = title.match(/issue #(\d+)/i);
+    $data.find('p').each((index, item) => {
+      var $item = $(item);
+      var info_name = $item.find('.info:first-child').text().replace(/:/, '');
 
-      if (!!match) {
-        issue.attributes.number = Number(match[1]);
+      switch(info_name) {
+        case 'Genres':
+          $item.find('a').each((_, genre) => {
+            var genre_data = get_linked_data($(genre), 'genres');
+
+            json_data.included.push(genre_data);
+
+            if (!json_data.data.relationships.genres) {
+              json_data.data.relationships.genres = [];
+            }
+
+            json_data.data.relationships.genres.push({
+              id: genre_data.id,
+              type: genre_data.type
+            });
+          });
+
+          break;
+
+        case 'Publisher':
+          var publisher_data = get_linked_data($item.find('a'), 'publishers');
+
+          json_data.included.push(publisher_data);
+
+          json_data.data.relationships.publisher = {
+            id: publisher_data.id,
+            type: publisher_data.type
+          };
+
+          break;
+
+        case 'Writer':
+          var writer_data = get_person_data($item.find('a'), 'writers');
+
+          json_data.included.push(writer_data);
+          json_data.data.relationships.writer = {
+            id: writer_data.id,
+            type: writer_data.type
+          };
+
+          break;
+
+        case 'Artist':
+          var artist_data = get_person_data($item.find('a'), 'artists');
+
+          json_data.included.push(artist_data);
+          json_data.data.relationships.artist = {
+            id: artist_data.id,
+            type: artist_data.type
+          };
+
+          break;
+
+        case 'Publication date':
+          json_data.data.attributes.publication_date = $item.text().match(/publication date:\s+(.+)/i)[1].trim();
+          break;
+
+        case 'Status':
+          json_data.data.attributes.status = $item.text().match(/status:\s+(.+?)\s+/i)[1].trim();
+          break;
+
+        case 'Summary':
+          json_data.data.attributes.summary = $item.next().text().trim();
+          break;
       }
+    });
 
-      json_data.included.push(issue);
+    $('.listing').find('tr').each((index, item) => {
+      var $item = $(item);
 
-      if (!json_data.data.relationships.issues) {
-        json_data.data.relationships.issues = [];
+      if ($item.find('a').length > 0) {
+        var title = $item.find('a').text().trim();
+        var issue_id = get_url_last_part($item.find('a').attr('href'));
+        var url = make_url(ROUTES.comic.issue, { name: json_data.data.id, issue: issue_id });
+        var release_day = $item.find('td:last-child').text().trim();
+
+        var issue = {
+          id: `${json_data.data.id}-${issue_id}`,
+          type: 'issues',
+          attributes: {
+            title: title,
+            release_day: release_day
+          },
+          links: {
+            self: url
+          }
+        };
+
+        var match = title.match(/issue #(\d+)/i);
+
+        if (!!match) {
+          issue.attributes.number = Number(match[1]);
+        }
+
+        json_data.included.push(issue);
+
+        if (!json_data.data.relationships.issues) {
+          json_data.data.relationships.issues = [];
+        }
+
+        json_data.data.relationships.issues.push({
+          id: issue.id,
+          type: issue.type
+        });
       }
+    });
 
-      json_data.data.relationships.issues.push({
-        id: issue.id,
-        type: issue.type
-      });
-    }
-  });
-
-  // Download the cover
-  return new Promise((resolve, reject) => {
-    make_request.download(cover_url, cache.get_cached_absolute_path('covers', request.params.name))
+    // Download the cover
+    server_request.download(cover_url, cache.get_cached_absolute_path('covers', request.params.name))
       .then((filename) => {
         json_data.data.links.cover = make_url(cache.get_url_from_cached_file(filename));
         resolve(json_data);
       });
   });
+  p.__name = 'Comic details';
+  return p;
 };
 
 var get_comic_issue = (response, request) => {
@@ -290,7 +295,9 @@ var get_comic_issue = (response, request) => {
     }
   };
 
-  return Promise.resolve(json_data);
+  var p = Promise.resolve(json_data);
+  p.__name = 'Comic issue';
+  return p;
 };
 
 var check_for_cached_response = (request_stream, response_stream, response, callback) => {
@@ -302,6 +309,9 @@ var check_for_cached_response = (request_stream, response_stream, response, call
       .then((result) => {
         response.result = result;
         response_stream.json(response.result);
+      })
+      .catch((reason) => {
+        console.log(reason);
       });
   }
 };
@@ -315,7 +325,7 @@ var handle_simple_comic_listing_request = (type) => {
       url_params.page = req.params.page;
     }
 
-    make_request({ url: url, qs: url_params, cache_key: get_cache_key(`comics\\:${type}\\::name?\\:page\\::page?`, req.params) })
+    server_request.make_request({ url: url, qs: url_params, cache_key: get_cache_key(`comics\\:${type}\\::name?\\:page\\::page?`, req.params) })
       .then((response) => {
         check_for_cached_response(req, res, response, get_comic_listing);
       });
@@ -327,7 +337,7 @@ var handle_simple_comic_listing_request = (type) => {
 //////////////////
 
 router.get(ROUTES.root, (req, res) => {
-  make_request({ url: 'http://readcomiconline.to' })
+  server_request.make_request({ url: 'http://readcomiconline.to' })
     .then((response) => {
       // res.send('output');
       res.send(response.body);
@@ -354,7 +364,7 @@ router.get(ROUTES.comics.list, (req, res, next) => {
     url_params.page = req.params.page;
   }
 
-  make_request({ url: url, qs: url_params, cache_key: get_cache_key("comics\\:letter\\::letter?\\:page\\::page?", req.params) })
+  server_request.make_request({ url: url, qs: url_params, cache_key: get_cache_key("comics\\:letter\\::letter?\\:page\\::page?", req.params) })
     .then((response) => {
       check_for_cached_response(req, res, response, get_comic_listing);
     });
@@ -373,7 +383,7 @@ router.get(ROUTES.comics.search, (req, res) => {
     body: `keyword=${req.params.keyword}`
   };
 
-  make_request(request_options)
+  server_request.make_request(request_options)
     .then((response) => {
       get_comic_listing(response, req).
         then((result) => { res.send(result); });
@@ -384,7 +394,7 @@ router.get(ROUTES.comics.search, (req, res) => {
 router.get(ROUTES.comic.detail, (req, res) => {
   var url = `http://readcomiconline.to/Comic/${req.params.name}`;
 
-  make_request({ url: url, cache_key: get_cache_key("comics\\:detail\\::name", req.params) })
+  server_request.make_request({ url: url, cache_key: get_cache_key("comics\\:detail\\::name", req.params) })
     .then((response) => {
       check_for_cached_response(req, res, response, get_comic_details);
     });
@@ -398,7 +408,7 @@ router.get(ROUTES.comic.issue, (req, res) => {
   // quality = lq -> low quality
   var url = `http://readcomiconline.to/Comic/${req.params.name}/${req.params.issue}?readType=1&quality=lq`;
 
-  make_request({ url: url, cache_key: get_cache_key("comics\\:detail\\::name\\::issue", req.params) })
+  server_request.make_request({ url: url, cache_key: get_cache_key("comics\\:detail\\::name\\::issue", req.params) })
     .then((response) => {
       check_for_cached_response(req, res, response, get_comic_issue);
     });

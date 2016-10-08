@@ -101,7 +101,7 @@ var make_request = (request_options) => {
     delete request_options.qs;
   }
 
-  var promise = new Promise((resolve, reject) => {
+  var p = new Promise((resolve, reject) => {
     var _make_request = () => {
       console.log(`--- Making new request (${(request_options.method || 'get').toUpperCase()}) ---`);
       console.log('URL:', request_options.url);
@@ -168,11 +168,14 @@ var make_request = (request_options) => {
           redis_client.setex(request_options.cache_key, 30 * 60 * 60 * 24, JSON.stringify(response.result));
         }
         else {
-          console.log('Response not ready, re-adding');
-          promise.then(_save_to_redis);
+          console.log('Response not ready, re-adding. Promise name:', p.__name);
+          setTimeout(() => {
+            p.then(_save_to_redis);
+          }, 0);
         }
       }
     };
+    
     if (cache_enabled) {
       if (!!request_options.cache_key) {
         console.log('Cache key is set:', request_options.cache_key, '- searching Redis');
@@ -199,7 +202,7 @@ var make_request = (request_options) => {
         setTimeout(() => {
           console.log('Setting handler to write to cache');
 
-          promise.then(_save_to_redis);
+          p.then(_save_to_redis);
         }, 0);
       }
     }
@@ -209,27 +212,46 @@ var make_request = (request_options) => {
     }
   });
 
-  return promise;
+  p.__name = `Make request [${request_options.url}]`;
+  return p;
 };
 
 
-make_request.download = (url, filename) => {
-  return new Promise((resolve, reject) => {
+var make_download = (url, filename) => {
+  var p = new Promise((resolve, reject) => {
     var request_options = {
       url: url,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1',
+        "Host": 'readcomiconline.to',
+        "Upgrade-Insecure-Requests": '1',
+        "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36',
+        "Accept": 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        "Referer": url,
+        "Accept-Encoding": 'gzip, deflate, sdch',
+        "Accept-Language": 'en-GB,en;q=0.8'  
       }
-    }
+    };
+
+    // request(request_options)
+    //   .pipe(fs.createWriteStream(filename))
+    //   .on('close', () => { resolve(filename); });
+
 
     request(Object.assign({}, request_options, { method: 'head' }), function(err, res, body) {
       filename = `${filename}.${mime.extension(res.headers['content-type'])}`;
-
+      console.log('filename', filename);
       request(request_options)
         .pipe(fs.createWriteStream(filename))
         .on('close', () => { resolve(filename); });
     });
   });
+
+  p.__name = 'Download cover';
+
+  return p;
 };
 
-module.exports = make_request;
+Object.assign(module.exports, {
+  make_request: make_request,
+  download: make_download
+});
