@@ -100,15 +100,19 @@ var get_comic_listing = (response, request) => {
 
   // console.log(`Rows: ${$all_rows.length}`);
 
+  var cover_downloaders = [];
+
   $all_rows.each((index, item) => {
     var $item = $(item);
 
     if ($item.find('td a').length > 0) {
-      var $url = $item.find('td:first-child a');
+      var $name_cell = $item.find('td:first-child');
+      var $url = $name_cell.find('a');
       var is_finished = $item.find('td:last-child a').length == 0;
       var comic_id = $url.attr('href').replace(/^\/Comic\//i, '').toLowerCase();
+      var cover_url = $name_cell.attr('title').match(/img\s*.*?\s*src="(.*?)"/)[1];
 
-      all_comics.push({
+      var comic = {
         type: 'comics',
         id: comic_id,
         attributes: {
@@ -118,17 +122,25 @@ var get_comic_listing = (response, request) => {
         links: {
           self: make_url(ROUTES.comic.detail, { name: comic_id })
         }
-      });
+      };
+
+      // Download the cover
+      cover_downloader = server_request.download(cover_url, cache.get_cached_absolute_path('covers', comic_id))
+        .then((filename) => {
+          comic.links.cover = make_url(cache.get_url_from_cached_file(filename));
+          return comic;
+        });
+
+      cover_downloaders.push(cover_downloader);
     }
   });
 
-  var p = Promise.resolve({
-    links: links,
-    data: all_comics
+  return Promise.all(cover_downloaders).then((all_comics_with_covers) => {
+    return {
+      links: links,
+      data: all_comics_with_covers
+    };
   });
-
-  p.__name = 'Comics listing';
-  return p;
 };
 
 var get_comic_details = (response, request) => {
