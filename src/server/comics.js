@@ -455,7 +455,7 @@ router.get(ROUTES.genres, (req, res) => {
       }
     });
 
-    res.json(data);
+    res.json({ data: data });
   }
 });
 
