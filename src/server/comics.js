@@ -18,7 +18,7 @@ const ROUTES = {
     detail: '/comic/:name',
     issue: '/comic/:name/:issue'
   },
-  genres: '/genres/:name/:page?',
+  genres: '/genres/:name?/:page?',
   publishers: '/publishers/:name/:page?',
   writers: '/writers/:name/:page?',
   artists: '/artists/:name/:page?'
@@ -427,7 +427,38 @@ router.get(ROUTES.comic.issue, (req, res) => {
 });
 
 // Comic listings by genre
-router.get(ROUTES.genres, handle_simple_comic_listing_request('genre'));
+router.get(ROUTES.genres, (req, res) => {
+  if (!!req.params.name) {
+    handle_simple_comic_listing_request('genre')(req, res);
+  }
+  else {
+    var genres = [ 'Action', 'Adventure', 'Anthology', 'Anthropomorphic', 'Biography', 'Children', 'Comedy', 'Crime'
+      , 'Drama', 'Family', 'Fantasy', 'Fighting', 'Graphic Novels', 'Historical', 'Horror', 'Leading Ladies', 'LGBTQ'
+      , 'Literature', 'Manga', 'Martial Arts', 'Mature', 'Military', 'Movies & TV', 'Mystery', 'Mythology', 'Personal'
+      , 'Political', 'Post-Apocalyptic', 'Psychological', 'Pulp', 'Religious', 'Robots', 'Romance', 'School Life'
+      , 'Sci-Fi', 'Slice of Life', 'Spy', 'Superhero', 'Supernatural', 'Suspense', 'Thriller', 'Vampires'
+      , 'Video Games', 'War', 'Western', 'Zombies' ];
+
+    var data = genres.map((genre) => {
+      var id = genre.replace(/[^a-z0-9 ]/ig, '').replace(/\s+/g, '-').toLowerCase();
+      return {
+        links: {
+          self: make_url(`/genres/${id}`)
+        },
+        data: {
+          type: 'genre',
+          id: id,
+          attributes: {
+            name: genre
+          }
+        }
+      }
+    });
+
+    res.json(data);
+  }
+});
+
 // Comic listings by publisher
 router.get(ROUTES.publishers, handle_simple_comic_listing_request('publisher'));
 // Comic listings by writer
