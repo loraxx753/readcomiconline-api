@@ -9,6 +9,13 @@ var pathToRegexp    = require('path-to-regexp');
 var cache           = require('../cache');
 var async           = require('async');
 
+const GENRES = [ 'Action', 'Adventure', 'Anthology', 'Anthropomorphic', 'Biography', 'Children', 'Comedy', 'Crime'
+  , 'Drama', 'Family', 'Fantasy', 'Fighting', 'Graphic Novels', 'Historical', 'Horror', 'Leading Ladies', 'LGBTQ'
+  , 'Literature', 'Manga', 'Martial Arts', 'Mature', 'Military', 'Movies & TV', 'Mystery', 'Mythology', 'Personal'
+  , 'Political', 'Post-Apocalyptic', 'Psychological', 'Pulp', 'Religious', 'Robots', 'Romance', 'School Life'
+  , 'Sci-Fi', 'Slice of Life', 'Sport', 'Spy', 'Superhero', 'Supernatural', 'Suspense', 'Thriller', 'Vampires'
+  , 'Video Games', 'War', 'Western', 'Zombies' ];
+
 const ROUTES = {
   root: '/',
   comics: {
@@ -413,7 +420,7 @@ router.get(ROUTES.comics.list, (req, res, next) => {
 router.get(ROUTES.comics.search, (req, res) => {
   var url = 'http://readcomiconline.to/AdvanceSearch';
 
-  if (req.params.keyword.match(/^[012]{47}$/)) {
+  if (req.params.keyword.match(new RegExp(`^[012]{${GENRES.length}}$`))) {
     req.params.genres = req.params.keyword;
     req.params.keyword = '';
   }
@@ -474,14 +481,7 @@ router.get(ROUTES.genres, (req, res) => {
     handle_simple_comic_listing_request('genre')(req, res);
   }
   else {
-    var genres = [ 'Action', 'Adventure', 'Anthology', 'Anthropomorphic', 'Biography', 'Children', 'Comedy', 'Crime'
-      , 'Drama', 'Family', 'Fantasy', 'Fighting', 'Graphic Novels', 'Historical', 'Horror', 'Leading Ladies', 'LGBTQ'
-      , 'Literature', 'Manga', 'Martial Arts', 'Mature', 'Military', 'Movies & TV', 'Mystery', 'Mythology', 'Personal'
-      , 'Political', 'Post-Apocalyptic', 'Psychological', 'Pulp', 'Religious', 'Robots', 'Romance', 'School Life'
-      , 'Sci-Fi', 'Slice of Life', 'Spy', 'Superhero', 'Supernatural', 'Suspense', 'Thriller', 'Vampires'
-      , 'Video Games', 'War', 'Western', 'Zombies' ];
-
-    var data = genres.map((genre) => {
+    var data = GENRES.map((genre) => {
       var id = genre.replace(/[^a-z0-9 ]/ig, '').replace(/\s+/g, '-').toLowerCase();
       return {
         links: {
