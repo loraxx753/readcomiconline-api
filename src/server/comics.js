@@ -7,6 +7,7 @@ var router          = express.Router();
 var stringify       = require('node-stringify');
 var pathToRegexp    = require('path-to-regexp');
 var cache           = require('../cache');
+var async           = require('async');
 
 const ROUTES = {
   root: '/',
@@ -60,6 +61,11 @@ var get_linked_data = ($data, type) => {
   };
 }
 
+var cover_download_queue = async.queue((task, callback) => {
+  server_request.download(task.url, task.filename)
+    .then(callback, callback);
+});
+
 var get_cache_key = (template, data) => {
   return pathToRegexp.compile(template)(data);
 };
@@ -101,6 +107,7 @@ var get_comic_listing = (response, request) => {
   // console.log(`Rows: ${$all_rows.length}`);
 
   var cover_downloaders = [];
+  var all_comics_with_covers = [];
 
   $all_rows.each((index, item) => {
     var $item = $(item);
@@ -125,22 +132,42 @@ var get_comic_listing = (response, request) => {
       };
 
       // Download the cover
-      cover_downloader = server_request.download(cover_url, cache.get_cached_absolute_path('covers', comic_id))
-        .then((filename) => {
-          comic.links.cover = make_url(cache.get_url_from_cached_file(filename));
-          return comic;
-        });
+      var cover_filename = cache.get_cached_absolute_path('covers', comic_id);
 
-      cover_downloaders.push(cover_downloader);
+      if (cache.cached_file_exists(cover_filename)) {
+        comic.links.cover = make_url(cache.get_url_from_cached_file(cover_filename));
+      }
+      else {
+        console.log(`[${comic_id}] Queueing: ${cover_url}`);
+        cover_download_queue.push({ url: cover_url, filename: cover_filename }, (filename) => {
+          if (!!filename)
+            comic.links.cover = make_url(cache.get_url_from_cached_file(filename));
+        });
+      }
+
+      all_comics_with_covers.push(comic);
     }
   });
 
-  return Promise.all(cover_downloaders).then((all_comics_with_covers) => {
-    return {
-      links: links,
-      data: all_comics_with_covers
-    };
-  });
+  if (cover_download_queue.length > 0) {
+    return new Promise((resolve, reject) => {
+      cover_download_queue.drain = () => {
+        console.log('All covers downloaded, resolving promise');
+        resolve({
+          links: links,
+          data: all_comics_with_covers
+        });
+      };
+    });
+  }
+  else {
+    return new Promise((resolve, reject) => {
+      resolve({
+        links: links,
+        data: all_comics_with_covers
+      });
+    });
+  }
 };
 
 var get_comic_details = (response, request) => {

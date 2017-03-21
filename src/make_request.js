@@ -75,7 +75,7 @@ var make_request = (request_options) => {
     "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36',
     "Accept": 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
     "Accept-Encoding": 'gzip, deflate, sdch',
-    "Accept-Language": 'en-GB,en;q=0.8'  
+    "Accept-Language": 'en-GB,en;q=0.8'
   };
 
   if (typeof request_options == 'string') {
@@ -107,12 +107,12 @@ var make_request = (request_options) => {
       console.log('URL:', request_options.url);
       console.log(`Headers:`);
 
-      if (!!request_options.body) {
-        console.log(`Body: ${request_options.body}`);
-      }
-
       for(var key in request_options.headers) {
         console.log(`- ${key}: ${request_options.headers[key]}`);
+      }
+
+      if (!!request_options.body) {
+        console.log(`Body: ${request_options.body}`);
       }
 
       request(request_options, (error, response, body) => {
@@ -124,7 +124,7 @@ var make_request = (request_options) => {
               console.log('Challenge options:');
               console.log('url:', challenge_options.url);
               console.log('headers:', challenge_options.headers);
-              
+
               console.log('------- Challenge options: -------');
               console.log(challenge_options.headers["Referer"], request_options.headers["Referer"], request_options.url);
 
@@ -134,7 +134,7 @@ var make_request = (request_options) => {
 
               console.log(challenge_options.headers["Referer"], request_options.headers["Referer"], request_options.url);
               console.log('------- /Challenge options: -------');
-              
+
               challenge_options.from_cache = false;
 
               make_request(challenge_options)
@@ -143,9 +143,6 @@ var make_request = (request_options) => {
         }
         else {
           console.log('Challenge has been passed');
-          // console.log('error', error);
-          // console.log('response', response);
-          // console.log('body', body);
 
           resolve({
             error: error,
@@ -175,7 +172,7 @@ var make_request = (request_options) => {
         }
       }
     };
-    
+
     if (cache_enabled) {
       if (!!request_options.cache_key) {
         console.log('Cache key is set:', request_options.cache_key, '- searching Redis');
@@ -222,27 +219,33 @@ var make_download = (url, filename) => {
     var request_options = {
       url: url,
       headers: {
-        "Host": 'readcomiconline.to',
         "Upgrade-Insecure-Requests": '1',
         "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36',
         "Accept": 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         "Referer": url,
         "Accept-Encoding": 'gzip, deflate, sdch',
-        "Accept-Language": 'en-GB,en;q=0.8'  
+        "Accept-Language": 'en-GB,en;q=0.8'
       }
     };
 
-    // request(request_options)
-    //   .pipe(fs.createWriteStream(filename))
-    //   .on('close', () => { resolve(filename); });
+    if (url.match(/^https?:\/\/readcomiconline\.to\//))
+      request_options.headers['Host'] = 'readcomiconline.to';
 
+    console.log(`Downloading: ${url}`);
 
     request(Object.assign({}, request_options, { method: 'head' }), function(err, res, body) {
-      filename = `${filename}.${mime.extension(res.headers['content-type'])}`;
-      console.log('filename', filename);
-      request(request_options)
-        .pipe(fs.createWriteStream(filename))
-        .on('close', () => { resolve(filename); });
+      try {
+        filename = `${filename}.${mime.extension(res.headers['content-type'])}`;
+        request(request_options)
+          .pipe(fs.createWriteStream(filename))
+          .on('close', () => { resolve(filename); });
+      }
+      catch(e) {
+        console.log('error downloading');
+        console.log(err);
+
+        reject();
+      }
     });
   });
 

@@ -5,6 +5,7 @@
   "main": "server.js",
   "author": "Pedro Rodrigues",
   "dependencies": {
+    "async": "^2.1.5",
     "cheerio": "^0.22.0",
     "errorhandler": "^1.4.3",
     "express": "^4.14.0",
