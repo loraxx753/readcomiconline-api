@@ -135,7 +135,7 @@ var get_comic_listing = (response, request) => {
       var cover_filename = cache.get_cached_absolute_path('covers', comic_id);
 
       if (cache.cached_file_exists(cover_filename)) {
-        comic.links.cover = make_url(cache.get_url_from_cached_file(cover_filename));
+        comic.links.cover = make_url(cache.get_url_from_cached_file(cache.get_first_cached_file(cover_filename)));
       }
       else {
         console.log(`[${comic_id}] Queueing: ${cover_url}`);

@@ -54,13 +54,17 @@ module.exports = {
     return filename.replace(/^.*?\/?cache\//i, '');
   },
 
-
-
-  cached_file_exists(filename) {
+  get_first_cached_file(filename) {
     var filename_only = path.basename(filename, path.extname(filename));
 
-    return !!array_detect(fs.readdirSync(path.dirname(filename)), (file) => {
+    var found = array_detect(fs.readdirSync(path.dirname(filename)), (file) => {
       return filename_only == path.basename(file, path.extname(file));
     });
+
+    return !!found ? path.join(path.dirname(filename), found) : found;
+  },
+
+  cached_file_exists(filename) {
+    return !!this.get_first_cached_file(filename);
   }
 };
