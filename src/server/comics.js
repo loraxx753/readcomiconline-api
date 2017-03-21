@@ -13,7 +13,7 @@ const ROUTES = {
   root: '/',
   comics: {
     list: '/comics/:letter(0|[a-z])?/:page(\\d+)?',
-    search: '/comics/search/:keyword',
+    search: '/comics/search/:keyword/:genres([012]{47})?/:status(ongoing|completed)?',
   },
   comic: {
     detail: '/comic/:name',
@@ -411,7 +411,22 @@ router.get(ROUTES.comics.list, (req, res, next) => {
 
 // Search comic
 router.get(ROUTES.comics.search, (req, res) => {
-  var url = 'http://readcomiconline.to/Search/Comic';
+  var url = 'http://readcomiconline.to/AdvanceSearch';
+
+  if (req.params.keyword.match(/^[012]{47}$/)) {
+    req.params.genres = req.params.keyword;
+    req.params.keyword = '';
+  }
+
+  var body = `comicName=${req.params.keyword || ''}`;
+
+  if (!req.params.genres)
+    req.params.genres = '0'.repeat(47);
+
+  for (var i = 0; i < req.params.genres.length; i++)
+    body += `&genres=${req.params.genres[i]}`;
+
+  body += `&status=${req.params.status || ''}`;
 
   request_options = {
     url: url,
@@ -419,7 +434,7 @@ router.get(ROUTES.comics.search, (req, res) => {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
     },
-    body: `keyword=${req.params.keyword}`
+    body: body
   };
 
   server_request.make_request(request_options)
