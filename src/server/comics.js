@@ -156,7 +156,7 @@ var get_comic_listing = (response, request) => {
     }
   });
 
-  if (cover_download_queue.length > 0) {
+  if (cover_download_queue.length() > 0) {
     return new Promise((resolve, reject) => {
       cover_download_queue.drain = () => {
         console.log('All covers downloaded, resolving promise');
