@@ -138,7 +138,7 @@ var make_request = (request_options) => {
               challenge_options.from_cache = false;
 
               make_request(challenge_options)
-                .then(resolve);
+                .then(() => { make_request(request_options).then(resolve); });
             });
         }
         else {
