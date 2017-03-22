@@ -161,10 +161,10 @@ module.exports = {
     var filename_only = strip_string_diacritics(path.basename(filename, path.extname(filename)));
 
     var found = array_detect(fs.readdirSync(path.dirname(filename)), (file) => {
-      return filename_only == strip_string_diacritics(path.basename(file, path.extname(file)));
+      return filename_only == path.basename(file, path.extname(file));
     });
 
-    return !!found ? path.join(path.dirname(filename), strip_string_diacritics(found)) : found;
+    return !!found ? path.join(path.dirname(filename), found) : found;
   },
 
   cached_file_exists(filename) {
