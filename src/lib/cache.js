@@ -1,6 +1,6 @@
-var fs            = require('fs');
-var path          = require('path');
-var util          = require('util');
+const fs            = require('fs');
+const path          = require('path');
+const util          = require('util');
 
 const DIACRITICS = {
   "\u24B6": "A", "\uFF21": "A", "\u00C0": "A", "\u00C1": "A", "\u00C2": "A", "\u1EA6": "A", "\u1EA4": "A", "\u1EAA": "A", "\u1EA8": "A", "\u00C3": "A",
@@ -87,7 +87,7 @@ const DIACRITICS = {
   "\u017E": "z", "\u1E93": "z", "\u1E95": "z", "\u01B6": "z", "\u0225": "z", "\u0240": "z", "\u2C6C": "z", "\uA763": "z"
 };
 
-var array_detect = function(array, test) {
+const array_detect = (array, test) => {
   var Result = function(v1, i1) {
     this.v = v1;
     this.i = i1;
@@ -100,15 +100,14 @@ var array_detect = function(array, test) {
       }
     });
   } catch (error) {
-    e = error;
-    if (e instanceof Result) {
-      return e.v;
+    if (error instanceof Result) {
+      return error.v;
     }
-    throw e;
+    throw error;
   }
 };
 
-var strip_string_diacritics = function(string) {
+const strip_string_diacritics = (string) => {
   var c, i, l, ret;
   if (!string || string.length < 1) {
     return string;
@@ -126,48 +125,54 @@ var strip_string_diacritics = function(string) {
 };
 
 
-module.exports = {
-  ensure_cache_dir_exists(dir) {
-    var full_path, stat;
+const ensure_cache_dir_exists = (dir) => {
+  var full_path, stat;
 
-    try {
-      full_path = path.resolve('cache');
-      stat = fs.statSync(full_path);
-    }
-    catch(err) {
-      fs.mkdirSync(full_path);
-    }
-
-    try {
-      full_path = path.resolve(full_path, dir);
-      stat = fs.statSync(full_path);
-    }
-    catch(err) {
-      fs.mkdirSync(full_path);
-    }
-  },
-
-  get_cached_absolute_path(type, filename) {
-    this.ensure_cache_dir_exists(type);
-
-    return path.resolve('cache', type, strip_string_diacritics(filename));
-  },
-
-  get_url_from_cached_file(filename) {
-    return filename.replace(/^.*?\/?cache\//i, '');
-  },
-
-  get_first_cached_file(filename) {
-    var filename_only = strip_string_diacritics(path.basename(filename, path.extname(filename)));
-
-    var found = array_detect(fs.readdirSync(path.dirname(filename)), (file) => {
-      return filename_only == path.basename(file, path.extname(file));
-    });
-
-    return !!found ? path.join(path.dirname(filename), found) : found;
-  },
-
-  cached_file_exists(filename) {
-    return !!this.get_first_cached_file(filename);
+  try {
+    full_path = path.resolve('cache');
+    stat = fs.statSync(full_path);
   }
+  catch(err) {
+    fs.mkdirSync(full_path);
+  }
+
+  try {
+    full_path = path.resolve(full_path, dir);
+    stat = fs.statSync(full_path);
+  }
+  catch(err) {
+    fs.mkdirSync(full_path);
+  }
+};
+
+const get_cached_absolute_path = (type, filename) => {
+  ensure_cache_dir_exists(type);
+
+  return path.resolve('cache', type, strip_string_diacritics(filename));
+};
+
+const get_url_from_cached_file = (filename) => {
+  return filename.replace(/^.*?\/?cache\//i, '');
+};
+
+const get_first_cached_file = (filename) => {
+  var filename_only = strip_string_diacritics(path.basename(filename, path.extname(filename)));
+
+  var found = array_detect(fs.readdirSync(path.dirname(filename)), (file) => {
+    return filename_only == path.basename(file, path.extname(file));
+  });
+
+  return !!found ? path.join(path.dirname(filename), found) : found;
+};
+
+const cached_file_exists = (filename) => {
+  return !!get_first_cached_file(filename);
+};
+
+export {
+  ensure_cache_dir_exists,
+  get_cached_absolute_path,
+  get_url_from_cached_file,
+  get_first_cached_file,
+  cached_file_exists
 };

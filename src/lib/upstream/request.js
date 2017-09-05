@@ -1,19 +1,38 @@
-// var pass_challenge = require('./pass_challenge_phantom');
-var pass_challenge = require('./pass_challenge');
-var request = require('request');
-var file_cookie_store = require("tough-cookie-filestore");
-var fs            = require('fs');
-var path          = require('path');
-var util          = require('util');
-var redis         = require('redis');
-var mime          = require('mime');
-var redis_client  = redis.createClient({
+import tough from 'tough-cookie';
+
+import { pass_challenge } from './pass_challenge';
+const requestLib = require('request');
+const file_cookie_store = require("tough-cookie-file-store");
+const fs            = require('fs');
+const path          = require('path');
+const util          = require('util');
+const redis         = require('redis');
+const mime          = require('mime');
+const redis_client  = redis.createClient({
   host: 'localhost',
   port: 6379,
   db: 15
 });
 
-var cache_enabled = true;
+const get_cookie_filename = () => {
+  var full_path, stat;
+
+  // Ensure that the cookies file exists
+  try {
+    full_path = path.resolve('cookies.json');
+    stat = fs.statSync(full_path);
+  }
+  catch(err) {
+    var fd = fs.openSync(full_path, 'w');
+    fs.closeSync(fs.openSync(full_path, 'w'));
+  }
+
+  return full_path;
+};
+
+const cookieStore = new file_cookie_store(get_cookie_filename())
+
+var cache_enabled = false;
 
 var ensure_cache_dir_exists = (dir) => {
   var full_path, stat;
@@ -41,33 +60,60 @@ var get_cached_absolute_path = (type, filename) => {
   return path.resolve('cache', type, filename);
 };
 
-var get_cookie_filename = () => {
-  var full_path, stat;
-
-  // Ensure that the cookies file exists
-  try {
-    full_path = path.resolve('cookies.json');
-    stat = fs.statSync(full_path);
-  }
-  catch(err) {
-    var fd = fs.openSync(full_path, 'w');
-    fs.closeSync(fs.openSync(full_path, 'w'));
-  }
-
-  return full_path;
-};
-
 redis_client.on("error", function (err) {
   console.log(`[REDIS] Error ${err}`);
 });
 
-request = request.defaults({
+const request = requestLib.defaults({
   // proxy: 'http://localhost:8888',
-  jar: request.jar(new file_cookie_store(get_cookie_filename())),
+  jar: requestLib.jar(cookieStore),
   gzip: true
 });
 
-var make_request = (request_options) => {
+const getCookiesFromResponse = (response) => {
+  let cookies = {};
+  const cookieStoreCookies = cookieStore.idx['readcomiconline.to']['/'];
+  const cookiesSet = response.headers['set-cookie'] || [];
+
+  // Build the object with the current cookies
+  for(var key in cookieStoreCookies) {
+    cookies[key] = cookieStoreCookies[key].value;
+  }
+
+  // Add/update the ones being set by the request
+  cookiesSet.reduce((obj, item) => {
+    let match = item.match(/^(.*?)=(.*?);/);
+    obj[match[1]] = match[2];
+    return obj;
+  }, cookies);
+
+  return cookies;
+};
+
+const createCookieJarStoreWithAuth = (authData) => {
+  const { username, password, sessionId } = authData;
+  const cookieStoreCookies = cookieStore.idx['readcomiconline.to']['/'];
+  const cookieJar = new tough.CookieJar();
+  const usernameCookie = `username=${username}; path=/; domain=readcomiconline.to`;
+  const passwordCookie = `password=${password}; path=/; domain=readcomiconline.to`;
+  const sessionIdCookie = `ASP.NET_SessionId=${sessionId}; path=/; domain=readcomiconline.to`;
+
+  // Copy cookies from default store
+  for(var key in cookieStoreCookies) {
+    cookieJar.setCookieSync(cookieStoreCookies[key], 'http://readcomiconline.to/');
+  }
+
+  // Set auth cookies
+  cookieJar.setCookieSync(usernameCookie, 'http://readcomiconline.to/');
+  cookieJar.setCookieSync(passwordCookie, 'http://readcomiconline.to/');
+  cookieJar.setCookieSync(sessionIdCookie, 'http://readcomiconline.to/');
+
+  return cookieJar.store;
+};
+
+const server_request = (request_options) => {
+  const hasAuth = !!request_options.authData;
+
   var from_cache = false;
   var request_headers = {
     "Host": 'readcomiconline.to',
@@ -101,8 +147,14 @@ var make_request = (request_options) => {
     delete request_options.qs;
   }
 
+  // Use a new cookie jar with authData
+  if (!!request_options.authData) {
+    request_options.jar = request.jar(createCookieJarStoreWithAuth(request_options.authData));
+    // delete request_options.authData;
+  }
+
   var p = new Promise((resolve, reject) => {
-    var _make_request = () => {
+    var _server = () => {
       console.log(`--- Making new request (${(request_options.method || 'get').toUpperCase()}) ---`);
       console.log('URL:', request_options.url);
       console.log(`Headers:`);
@@ -137,18 +189,37 @@ var make_request = (request_options) => {
 
               challenge_options.from_cache = false;
 
-              make_request(challenge_options)
-                .then(() => { make_request(request_options).then(resolve); });
+              server_request(challenge_options)
+                .then(() => { server_request(request_options).then(resolve); });
             });
         }
         else {
           console.log('Challenge has been passed');
 
-          resolve({
-            error: error,
-            response: response,
-            body: body
-          });
+          if (hasAuth) {
+            const loggedInRegex = new RegExp('<div id="menu_box" style="display: none">');
+            if (!loggedInRegex.test(response.body)) {
+              reject('UNAUTHORIZED');
+              return;
+            }
+          }
+
+          try {
+            resolve({
+              error: error,
+              response: response,
+              cookies: getCookiesFromResponse(response),
+              body: body
+            });
+          }
+          catch (error) {
+            console.log(error);
+          }
+          finally {
+            // Remove any username or password cookies that may have been set
+            cookieStore.removeCookie('readcomiconline.to', '/', 'username', () => {});
+            cookieStore.removeCookie('readcomiconline.to', '/', 'password', () => {});
+          }
         }
       });
     };
@@ -187,12 +258,12 @@ var make_request = (request_options) => {
             });
           }
           else {
-            _make_request();
+            _server();
           }
         });
       }
       else {
-        _make_request();
+        _server();
       }
 
       if (!from_cache && !!request_options.cache_key) {
@@ -205,7 +276,7 @@ var make_request = (request_options) => {
     }
     else {
       console.log('Cache is disabled!');
-      _make_request();
+      _server();
     }
   });
 
@@ -213,8 +284,7 @@ var make_request = (request_options) => {
   return p;
 };
 
-
-var make_download = (url, filename) => {
+const download = (url, filename) => {
   var p = new Promise((resolve, reject) => {
     var request_options = {
       url: url,
@@ -255,6 +325,6 @@ var make_download = (url, filename) => {
 };
 
 Object.assign(module.exports, {
-  make_request: make_request,
-  download: make_download
+  server_request: server_request,
+  download: download
 });

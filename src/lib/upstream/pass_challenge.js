@@ -1,10 +1,10 @@
-var cheerio = require('cheerio');
-var file_cookie_store = require("tough-cookie-filestore");
-var request = require('request');
-var fs            = require('fs');
-var path          = require('path');
+const cheerio = require('cheerio');
+const file_cookie_store = require("tough-cookie-file-store");
+const requestLib = require('request');
+const fs            = require('fs');
+const path          = require('path');
 
-var get_cookie_filename = () => {
+const get_cookie_filename = () => {
   var full_path, stat;
 
   // Ensure that the cookies file exists
@@ -19,13 +19,12 @@ var get_cookie_filename = () => {
 
   return full_path;
 };
-
-request = request.defaults({
-  // proxy: 'http://localhost:8888',
-  jar: request.jar(new file_cookie_store(get_cookie_filename()))
+const cookieJar = new file_cookie_store(get_cookie_filename());
+const request = requestLib.defaults({
+  jar: requestLib.jar(cookieJar)
 });
 
-module.exports = function(url, html) {
+const pass_challenge = (url, html) => {
   return new Promise((resolve, reject) => {
     var regex = /setTimeout\(((?:.|\n)*?), 4000/igm;
     var challenge_function;
@@ -60,7 +59,7 @@ module.exports = function(url, html) {
     var new_url = protocol_domain + $challenge_form.attr('action');
 
     new_url += '?' + $challenge_form.find('input').toArray().map(function(item, index) {
-      $item = $(item);
+      const $item = $(item);
       return $item.attr('name') + '=' + ($item.attr('value') || challenge_answer);
     }).join('&');
 
@@ -84,3 +83,5 @@ module.exports = function(url, html) {
     }, 4000);
   });
 };
+
+export { pass_challenge };
