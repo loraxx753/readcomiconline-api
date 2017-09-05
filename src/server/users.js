@@ -1,13 +1,12 @@
-const router         = require('express').Router();
-const upstream = require('../lib/upstream');
+import express from 'express';
+
+import upstream from '../lib/upstream';
 import { createJWToken } from '../lib/authentication';
+import { ROUTES } from '../lib/constants';
 
-const ROUTES = {
-  login: '/login',
-  logout: '/logout'
-}
+const users         = express.Router();
 
-router.post(ROUTES.login, (req, res) => {
+users.post(ROUTES.users.login, (req, res) => {
   console.log('req', req);
 
   const unauthorized = () => {
@@ -51,4 +50,4 @@ router.post(ROUTES.login, (req, res) => {
     }
 });
 
-module.exports = router;
+export { users };

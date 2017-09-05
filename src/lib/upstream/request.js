@@ -1,13 +1,15 @@
 import tough from 'tough-cookie';
+import requestLib from 'request';
+import file_cookie_store from "tough-cookie-file-store";
+import fs from 'fs';
+import path from 'path';
+import util from 'util';
+import redis from 'redis';
+import mime from 'mime';
 
 import { pass_challenge } from './pass_challenge';
-const requestLib = require('request');
-const file_cookie_store = require("tough-cookie-file-store");
-const fs            = require('fs');
-const path          = require('path');
-const util          = require('util');
-const redis         = require('redis');
-const mime          = require('mime');
+import { CACHE_ENABLED, REQUEST_HEADERS } from '../constants';
+
 const redis_client  = redis.createClient({
   host: 'localhost',
   port: 6379,
@@ -31,8 +33,6 @@ const get_cookie_filename = () => {
 };
 
 const cookieStore = new file_cookie_store(get_cookie_filename())
-
-var cache_enabled = false;
 
 var ensure_cache_dir_exists = (dir) => {
   var full_path, stat;
@@ -65,7 +65,6 @@ redis_client.on("error", function (err) {
 });
 
 const request = requestLib.defaults({
-  // proxy: 'http://localhost:8888',
   jar: requestLib.jar(cookieStore),
   gzip: true
 });
@@ -115,24 +114,16 @@ const server_request = (request_options) => {
   const hasAuth = !!request_options.authData;
 
   var from_cache = false;
-  var request_headers = {
-    "Host": 'readcomiconline.to',
-    "Upgrade-Insecure-Requests": '1',
-    "User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36',
-    "Accept": 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    "Accept-Encoding": 'gzip, deflate, sdch',
-    "Accept-Language": 'en-GB,en;q=0.8'
-  };
 
   if (typeof request_options == 'string') {
     request_options = {
       url: request_options,
-      headers: request_headers
+      headers: REQUEST_HEADERS
     };
   }
   else if (typeof request_options == 'object') {
     Object.assign(request_options, {
-      headers: Object.assign(request_headers, request_options.headers)
+      headers: Object.assign(REQUEST_HEADERS, request_options.headers)
     }, request_options);
   }
 
@@ -244,7 +235,7 @@ const server_request = (request_options) => {
       }
     };
 
-    if (cache_enabled) {
+    if (CACHE_ENABLED) {
       if (!!request_options.cache_key) {
         console.log('Cache key is set:', request_options.cache_key, '- searching Redis');
 
@@ -324,7 +315,7 @@ const download = (url, filename) => {
   return p;
 };
 
-Object.assign(module.exports, {
-  server_request: server_request,
-  download: download
-});
+export {
+  server_request,
+  download
+};

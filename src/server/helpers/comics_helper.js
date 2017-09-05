@@ -1,13 +1,20 @@
 import cheerio from 'cheerio';
 import async from 'async';
-import { ROUTES } from '../constants';
-import * as cache from '../cache';
-import upstream from '../upstream';
+import pathToRegexp from 'path-to-regexp';
+
+import { ROUTES } from '../../lib/constants';
+import cache from '../../lib/cache';
+import responses from '../../lib/responses';
+import upstream from '../../lib/upstream';
 
 const cover_download_queue = async.queue((task, callback) => {
   upstream.download(task.url, task.filename)
     .then(callback, callback);
 });
+
+const get_cache_key = (template, data) => {
+  return pathToRegexp.compile(template)(data);
+};
 
 const get_url_last_part = (url) => {
   return url.replace(/^.*?\/([^\/]+?)(\?.+)?$/, '$1').toLowerCase();
@@ -25,7 +32,7 @@ const get_person_data = ($data, type) => {
       last_name: name[name.length - 1]
     },
     links: {
-      self: upstream.make_url(`/${type}/${id}`)
+      self: upstream.make_url(`/${type}/${id}`, {}, type)
     }
   };
 }
@@ -40,7 +47,7 @@ const get_linked_data = ($data, type) => {
       name: $data.text()
     },
     links: {
-      self: upstream.make_url(`/${type}/${id}`)
+      self: upstream.make_url(`/${type}/${id}`, {}, type)
     }
   };
 }
@@ -65,7 +72,7 @@ const get_comic_listing = (response, request) => {
     links.first = upstream.make_url(request.route.path, link_params);
 
     if (current_page_number > 2) {
-      links.previous = upstream.make_url(request.route.path, Object.assign({}, link_params, { page: current_page_number - 1 }));
+      links.previous = upstream.make_url(request.route.path, Object.assign({}, link_params, { page: current_page_number - 1 }), ROUTES.comics.namespace);
     }
     else {
       links.previous = links.first;
@@ -74,8 +81,8 @@ const get_comic_listing = (response, request) => {
 
   if (current_page_number < last_page_number) {
     Object.assign(links, {
-      next: upstream.make_url(request.route.path, Object.assign({}, link_params, { page: current_page_number + 1 })),
-      last: upstream.make_url(request.route.path, Object.assign({}, link_params, { page: last_page_number }))
+      next: upstream.make_url(request.route.path, Object.assign({}, link_params, { page: current_page_number + 1 }), ROUTES.comics.namespace),
+      last: upstream.make_url(request.route.path, Object.assign({}, link_params, { page: last_page_number }), ROUTES.comics.namespace)
     });
   }
 
@@ -102,7 +109,7 @@ const get_comic_listing = (response, request) => {
           finished: is_finished
         },
         links: {
-          self: upstream.make_url(ROUTES.comics.detail, { name: comic_id })
+          self: upstream.make_url(ROUTES.comics.detail, { name: comic_id }, ROUTES.comics.namespace)
         }
       };
 
@@ -243,7 +250,7 @@ const get_comic_details = (response, request) => {
       if ($item.find('a').length > 0) {
         var title = $item.find('a').text().trim();
         var issue_id = get_url_last_part($item.find('a').attr('href'));
-        var url = upstream.make_url(ROUTES.comics.issue, { name: json_data.data.id, issue: issue_id });
+        var url = upstream.make_url(ROUTES.comics.issue, { name: json_data.data.id, issue: issue_id }, ROUTES.comics.namespace);
         var release_day = $item.find('td:last-child').text().trim();
 
         var issue = {
@@ -314,10 +321,52 @@ const get_comic_issue = (response, request) => {
   return p;
 };
 
-export {
+const handle_simple_comic_listing_request = (type) => {
+  return (req, res) => {
+    var url = `http://readcomiconline.to/${type}/${req.params.name}`;
+    var url_params = {};
+
+    if (!!req.params.page) {
+      url_params.page = req.params.page;
+    }
+
+    upstream.server_request({ url: url, qs: url_params, cache_key: get_cache_key(`comics\\:${type}\\::name?\\:page\\::page?`, req.params) })
+      .then((response) => {
+        check_for_cached_response(req, res, response, get_comic_listing);
+      }).catch((error) => {
+        if (error === 'UNAUTHORIZED') {
+          responses.unauthorized(res);
+        }
+        else {
+          responses.unknown(res, error);
+        }
+      });
+  };
+}
+
+const check_for_cached_response = (request_stream, response_stream, response, callback) => {
+  if (response.from_cache) {
+    response_stream.json(response.data);
+  }
+  else {
+    callback(response, request_stream)
+      .then((result) => {
+        response.result = result;
+        response_stream.json(response.result);
+      })
+      .catch((reason) => {
+        console.log(reason);
+      });
+  }
+};
+
+export default {
   get_person_data,
   get_linked_data,
   get_comic_listing,
   get_comic_details,
-  get_comic_issue
+  get_comic_issue,
+  handle_simple_comic_listing_request,
+  check_for_cached_response,
+  get_cache_key
 };

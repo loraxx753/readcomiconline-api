@@ -169,7 +169,7 @@ const cached_file_exists = (filename) => {
   return !!get_first_cached_file(filename);
 };
 
-export {
+export default {
   ensure_cache_dir_exists,
   get_cached_absolute_path,
   get_url_from_cached_file,

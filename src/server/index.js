@@ -1,27 +1,41 @@
-var express = require('express');
-var app     = express();
-var comics  = require('./comics');
-const users  = require('./users');
-const bodyParser = require('body-parser');
+// External libs
+import express from 'express';
+import bodyParser from 'body-parser';
+import morgan from 'morgan';
+import errorHandler from 'errorhandler';
+
+// Our libs
 import { authentication } from '../lib/authentication';
-var morgan = require('morgan');
-var errorHandler = require('errorhandler')
+
+import { users } from './users';
+import { comics } from './comics';
+import { genres } from './genres';
+import { createListRouter } from './helpers/comic_list_router';
+import { ROUTES } from '../lib/constants';
+
+const app = express();
 
 app.use(morgan('combined'));
-
 app.use(bodyParser.json()); // for parsing application/json
-// app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
+app.use(errorHandler({ showStack: true, dumpExceptions: true }));
 
-// app.use('/', comics);
-app.use('/comics', authentication);
-app.use('/comics', comics);
+// ROUTERS
+
+// Unauthenticated paths
 app.use('/users', users);
 
-app.use(errorHandler({showStack: true, dumpExceptions: true}));
+// Authenticated paths
+app.use(ROUTES.comics.namespace, authentication, comics);
+app.use(ROUTES.genres.namespace, authentication, genres);
+app.use('/publishers', authentication, createListRouter('publisher'));
+app.use('/artists', authentication, createListRouter('artist'));
+app.use('/writers', authentication, createListRouter('writer'));
+
+// Static paths
+app.use('/covers', express.static('cache/covers'));
 
 app.listen(process.env.PORT || 8081, function() {
   console.log('Readcomiconline API listening on port 8081!');
 });
 
-
-module.exports = app;
+export default app;

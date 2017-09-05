@@ -1,7 +1,7 @@
 import { unauthorized, invalidLogin } from './unauthorized';
 import { unknown } from './unknown';
 
-export {
+export default {
   unauthorized,
   invalidLogin,
   unknown
