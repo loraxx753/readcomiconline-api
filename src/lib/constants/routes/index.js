@@ -7,5 +7,7 @@ export default {
   comics,
   genres,
   users,
-  list
+  list,
+  login: '/login',
+  logout: '/logout'
 };
