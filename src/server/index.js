@@ -23,6 +23,7 @@ app.use(errorHandler({ showStack: true, dumpExceptions: true }));
 // ROUTERS
 
 // Authenticated paths
+app.use(ROUTES.users.namespace, authentication, users);
 app.use(ROUTES.comics.namespace, authentication, comics);
 app.use(ROUTES.genres.namespace, authentication, genres);
 app.use('/publishers', authentication, createListRouter('publisher'));
