@@ -118,4 +118,37 @@ comics.get(ROUTES.comics.issue, (req, res) => {
     });
 });
 
+// Favorite management
+comics.put(ROUTES.comics.favorite, (req, res) => {
+  var url = `http://readcomiconline.to/Bookmark/${req.params.name}/${req.params.issue}?readType=1&quality=lq`;
+
+  helper.get_comic_numeric_id(req.params.name)
+    .then(helper.add_favorite_comic)
+    .then(() => responses.emptySuccess(res))
+    .catch((error) => {
+      if (error === 'UNAUTHORIZED') {
+        responses.unauthorized(res);
+      }
+      else {
+        responses.unknown(res, error);
+      }
+    });
+});
+
+comics.delete(ROUTES.comics.favorite, (req, res) => {
+  var url = `http://readcomiconline.to/Bookmark/${req.params.name}/${req.params.issue}?readType=1&quality=lq`;
+
+  helper.get_comic_numeric_id(req.params.name)
+    .then(helper.remove_favorite_comic)
+    .then(() => responses.emptySuccess(res))
+    .catch((error) => {
+      if (error === 'UNAUTHORIZED') {
+        responses.unauthorized(res);
+      }
+      else {
+        responses.unknown(res, error);
+      }
+    });
+});
+
 export { comics };

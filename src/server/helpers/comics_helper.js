@@ -321,6 +321,65 @@ const get_comic_issue = (response, request) => {
   return p;
 };
 
+const get_comic_numeric_id = (id) => {
+  const url = `http://readcomiconline.to/Comic/${id}`;
+
+  // url: "/Bookmark/9218/add"
+  return new Promise((resolve, reject) => {
+    upstream.server_request({ url: url, cache_key: get_cache_key("comics\\:detail\\::name", { name: id }) })
+      .then((response) => {
+        const match = response.body.match(/url:\s+"\/Bookmark\/(\d+)\/add/);
+
+        if (match) {
+          resolve(match[1]);
+        }
+        else {
+          reject();
+        }
+      });
+  });
+};
+
+const add_favorite_comic = (comic_numeric_id) => {
+  const url = `http://readcomiconline.to/Bookmark/${comic_numeric_id}/add`;
+  const request_params = {
+    url: url,
+    method: 'POST'
+  };
+
+  return new Promise((resolve, reject) => {
+    upstream.server_request(request_params)
+      .then((response) => {
+        if (response.response.statusCode == 200) {
+          resolve();
+        }
+        else {
+          reject();
+        }
+      });
+  });
+};
+
+const remove_favorite_comic = (comic_numeric_id) => {
+  const url = `http://readcomiconline.to/Bookmark/${comic_numeric_id}/remove`;
+  const request_params = {
+    url: url,
+    method: 'POST'
+  };
+
+  return new Promise((resolve, reject) => {
+    upstream.server_request(request_params)
+      .then((response) => {
+        if (response.response.statusCode == 200) {
+          resolve();
+        }
+        else {
+          reject();
+        }
+      });
+  });
+};
+
 const handle_simple_comic_listing_request = (type) => {
   return (req, res) => {
     var url = `http://readcomiconline.to/${type}/${req.params.name}`;
@@ -365,6 +424,9 @@ export default {
   get_linked_data,
   get_comic_listing,
   get_comic_details,
+  get_comic_numeric_id,
+  add_favorite_comic,
+  remove_favorite_comic,
   get_comic_issue,
   handle_simple_comic_listing_request,
   check_for_cached_response,

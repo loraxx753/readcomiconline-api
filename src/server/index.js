@@ -16,6 +16,7 @@ import { ROUTES } from '../lib/constants';
 
 const app = express();
 
+// Third party middleware
 app.use(morgan('combined'));
 app.use(bodyParser.json()); // for parsing application/json
 app.use(errorHandler({ showStack: true, dumpExceptions: true }));
