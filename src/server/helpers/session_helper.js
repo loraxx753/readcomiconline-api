@@ -1,6 +1,7 @@
 import express from 'express';
 
 import upstream from '../../lib/upstream';
+import { createJWToken } from '../../lib/authentication';
 import { ROUTES } from '../../lib/constants';
 
 const session = express.Router();
