@@ -1,6 +1,7 @@
 const fs            = require('fs');
 const path          = require('path');
 const util          = require('util');
+import pathToRegexp from 'path-to-regexp';
 
 const DIACRITICS = {
   "\u24B6": "A", "\uFF21": "A", "\u00C0": "A", "\u00C1": "A", "\u00C2": "A", "\u1EA6": "A", "\u1EA4": "A", "\u1EAA": "A", "\u1EA8": "A", "\u00C3": "A",
@@ -124,6 +125,9 @@ const strip_string_diacritics = (string) => {
   }
 };
 
+const get_cache_key = (template, data) => {
+  return pathToRegexp.compile(template)(data);
+};
 
 const ensure_cache_dir_exists = (dir) => {
   var full_path, stat;
@@ -170,6 +174,7 @@ const cached_file_exists = (filename) => {
 };
 
 export default {
+  get_cache_key,
   ensure_cache_dir_exists,
   get_cached_absolute_path,
   get_url_from_cached_file,

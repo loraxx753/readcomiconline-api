@@ -1,6 +1,5 @@
 import ROUTES from './routes';
-
-const CACHE_ENABLED = false;
+import { CACHE_ENABLED, CACHE_KEYS } from './cache';
 
 // const BASE_URL = 'http://pmr.knifeinthesocket.com:8081';
 // const BASE_URL = 'http://api.comics.knifeinthesocket.com';
@@ -25,6 +24,7 @@ const GENRES = [ 'Action', 'Adventure', 'Anthology', 'Anthropomorphic', 'Biograp
 
 export {
   CACHE_ENABLED,
+  CACHE_KEYS,
   BASE_URL,
   REQUEST_HEADERS,
   ROUTES,

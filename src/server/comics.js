@@ -7,7 +7,7 @@ var async           = require('async');
 import cache from '../lib/cache';
 import responses from '../lib/responses';
 import upstream from '../lib/upstream';
-import { ROUTES, GENRES } from '../lib/constants';
+import { ROUTES, GENRES, CACHE_KEYS } from '../lib/constants';
 import helper from './helpers/comics_helper';
 
 //////////////////
@@ -42,7 +42,7 @@ comics.get(ROUTES.comics.list, (req, res, next) => {
     authData: req.authData,
     url: url,
     qs: url_params,
-    cache_key: helper.get_cache_key("comics\\:letter\\::letter?\\:page\\::page?", req.params)
+    cache_key: cache.get_cache_key(CACHE_KEYS.comics.list, req.params)
   }).then((response) => {
     helper.check_for_cached_response(req, res, response, helper.get_comic_listing);
   }).catch((error) => {
@@ -98,7 +98,7 @@ comics.get(ROUTES.comics.search, (req, res) => {
 comics.get(ROUTES.comics.detail, (req, res) => {
   var url = `http://readcomiconline.to/Comic/${req.params.name}`;
 
-  upstream.server_request({ url: url, cache_key: helper.get_cache_key("comics\\:detail\\::name", req.params) })
+  upstream.server_request({ url: url, cache_key: cache.get_cache_key(CACHE_KEYS.comics.details, req.params) })
     .then((response) => {
       helper.check_for_cached_response(req, res, response, helper.get_comic_details);
     });
@@ -112,7 +112,7 @@ comics.get(ROUTES.comics.issue, (req, res) => {
   // quality = lq -> low quality
   var url = `http://readcomiconline.to/Comic/${req.params.name}/${req.params.issue}?readType=1&quality=lq`;
 
-  upstream.server_request({ url: url, cache_key: helper.get_cache_key("comics\\:detail\\::name\\::issue", req.params) })
+  upstream.server_request({ url: url, cache_key: cache.get_cache_key(CACHE_KEYS.comics.issue, req.params) })
     .then((response) => {
       helper.check_for_cached_response(req, res, response, helper.get_comic_issue);
     });

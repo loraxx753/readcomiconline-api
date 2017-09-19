@@ -1,8 +1,7 @@
 import cheerio from 'cheerio';
 import async from 'async';
-import pathToRegexp from 'path-to-regexp';
 
-import { ROUTES } from '../../lib/constants';
+import { ROUTES, CACHE_KEYS } from '../../lib/constants';
 import cache from '../../lib/cache';
 import responses from '../../lib/responses';
 import upstream from '../../lib/upstream';
@@ -11,10 +10,6 @@ const cover_download_queue = async.queue((task, callback) => {
   upstream.download(task.url, task.filename)
     .then(callback, callback);
 });
-
-const get_cache_key = (template, data) => {
-  return pathToRegexp.compile(template)(data);
-};
 
 const get_url_last_part = (url) => {
   return url.replace(/^.*?\/([^\/]+?)(\?.+)?$/, '$1').toLowerCase();
@@ -326,7 +321,7 @@ const get_comic_numeric_id = (id) => {
 
   // url: "/Bookmark/9218/add"
   return new Promise((resolve, reject) => {
-    upstream.server_request({ url: url, cache_key: get_cache_key("comics\\:detail\\::name", { name: id }) })
+    upstream.server_request({ url: url, cache_key: cache.get_cache_key(CACHE_KEYS.comics.detail, { name: id }) })
       .then((response) => {
         const match = response.body.match(/url:\s+"\/Bookmark\/(\d+)\/add/);
 
@@ -389,7 +384,7 @@ const handle_simple_comic_listing_request = (type) => {
       url_params.page = req.params.page;
     }
 
-    upstream.server_request({ url: url, qs: url_params, cache_key: get_cache_key(`comics\\:${type}\\::name?\\:page\\::page?`, req.params) })
+    upstream.server_request({ url: url, qs: url_params, cache_key: cache.get_cache_key(CACHE_KEYS[type].list, req.params) })
       .then((response) => {
         check_for_cached_response(req, res, response, get_comic_listing);
       }).catch((error) => {
@@ -429,6 +424,5 @@ export default {
   remove_favorite_comic,
   get_comic_issue,
   handle_simple_comic_listing_request,
-  check_for_cached_response,
-  get_cache_key
+  check_for_cached_response
 };
