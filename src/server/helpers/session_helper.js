@@ -6,6 +6,10 @@ import { ROUTES } from '../../lib/constants';
 
 const session = express.Router();
 
+// curl -X POST \
+//      -H 'Content-Type: application/json' \
+//      -d '{ "username": "<username>", "password": "<password>" }' \
+//      http://127.0.0.1:8081/login
 session.post(ROUTES.login, (req, res) => {
   const unauthorized = () => {
     res.status(401).json({
