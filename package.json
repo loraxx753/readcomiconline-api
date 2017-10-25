@@ -22,8 +22,11 @@
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
+    "babel-eslint": "^8.0.1",
     "babel-preset-es2015": "^6.24.1",
     "babel-watch": "^2.0.7",
+    "eslint": "^4.9.0",
+    "eslint-plugin-jest": "^21.2.0",
     "grunt": "^1.0.1",
     "grunt-contrib-jshint": "^1.0.0",
     "grunt-contrib-uglify": "^2.0.0",
@@ -31,12 +34,15 @@
     "grunt-express-server": "^0.5.3",
     "grunt-parallel": "^0.5.1",
     "grunt-path": "0.0.2",
+    "jest": "^21.2.1",
     "morgan": "^1.7.0"
   },
   "repository": "git@github.com:gokuu/readcomiconline-api.git",
   "license": "MIT",
   "scripts": {
     "start": "babel-watch src/server/index.js",
-    "debug": "babel-watch src/server --inspect"
+    "debug": "babel-watch src/server --inspect",
+    "test": "jest",
+    "test:watch": "jest --watch"
   }
 }
